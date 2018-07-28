@@ -1,0 +1,58 @@
+version: '3.1'
+
+# Based on https://github.com/vegasbrianc/prometheus
+
+volumes:
+  prometheus_data: {}
+  grafana_data: {}
+
+networks:
+  front-tier:
+  back-tier:
+
+services:
+
+  prometheus:
+    build: ./prometheus
+    image: kaerast/rtt_exporter_prometheus
+    volumes:
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - 9090:9090
+    networks:
+      - back-tier
+    restart: always
+
+  rtt_exporter:
+    build:
+      context:    .
+      dockerfile: Dockerfile
+    image: kaerast/rtt_exporter
+    ports:
+      - 8080:8080
+    networks:
+      - back-tier
+    #environment:
+      # Values of these come from .env file
+    restart: always
+
+  grafana:
+    build: ./grafana
+    image: kaerast/rtt_exporter_grafana
+    depends_on:
+      - prometheus
+    ports:
+      - 3000:3000
+    volumes:
+      - grafana_data:/var/lib/grafana
+    env_file:
+      - ./grafana/config.monitoring
+    networks:
+      - back-tier
+      - front-tier
+    restart: always
